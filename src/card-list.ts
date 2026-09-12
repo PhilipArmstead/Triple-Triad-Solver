@@ -1,5 +1,5 @@
-import type { Card } from './types.ts'
-import { cards } from './data/cards.ts'
+import { cards } from "./data/cards"
+import type { Card } from "./types"
 
 export const injectCardList = (entry: HTMLElement) => {
 	// Group cards by level
@@ -13,14 +13,14 @@ export const injectCardList = (entry: HTMLElement) => {
 
 	// Create a container for each level and append the cards to it
 	Object.entries(groupedCards).forEach(([level, cards]) => {
-		const levelContainer = document.createElement('div')
-		levelContainer.classList.add('level-container')
+		const levelContainer = document.createElement("div")
+		levelContainer.classList.add("level-container")
 		levelContainer.innerHTML = `<h2>Level ${level}</h2>`
 
-		const cardListContainer = document.createElement('div')
-		cardListContainer.classList.add('card-list')
+		const cardListContainer = document.createElement("div")
+		cardListContainer.classList.add("card-list")
 		cards.forEach((card) => {
-			const cardElement = document.createElement('div')
+			const cardElement = document.createElement("div")
 			cardElement.innerHTML = `
 				<img src="/assets/cards/${card.imageFilename}" alt="${card.name}" />
 				<p class="card-name">${card.name}</p>

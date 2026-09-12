@@ -1,84 +1,66 @@
 {
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": [
-    "typescript",
-    "unicorn",
-    "vue",
-    "promise",
-    "node"
-  ],
-  "jsPlugins": [
-    "eslint-plugin-sonarjs",
-    "eslint-plugin-unused-imports",
-    "eslint-plugin-sort-class-members"
-  ],
-  "env": {
-    "browser": true,
-    "es2021": true,
-    "node": true
-  },
-  "ignorePatterns": [
-    ".idea",
-    ".vscode",
-    "build",
-    "dist",
-    "lib",
-    "mocks",
-    "node_modules",
-    "coverage",
-    "package-lock.json",
-    "pnpm-lock.yaml",
-    "yarn.lock"
-  ],
-  "overrides": [
-    {
-      "files": [
-        "**/*.js",
-        "**/*.ts"
-      ],
-      "rules": {
-        "sonarjs/cognitive-complexity": "error",
-        "sonarjs/no-duplicate-string": "error",
-        "sort-class-members/sort-class-members": [
-          "error",
-          {
-            "order": [
-              "constructor",
-              "[getters]",
-              "[methods]"
-            ],
-            "groups": {
-              "getters": [
-                {
-                  "kind": "get",
-                  "type": "method",
-                  "sort": "alphabetical"
-                }
-              ],
-              "methods": [
-                {
-                  "type": "method",
-                  "sort": "alphabetical"
-                }
-              ]
-            }
-          }
-        ],
-        "unused-imports/no-unused-imports": "error"
-      }
-    },
-    {
-      "files": [
-        "**/*.vue"
-      ],
-      "rules": {
-        "unicorn/filename-case": [
-          "error",
-          {
-            "case": "pascalCase"
-          }
-        ]
-      }
-    }
-  ]
+	"$schema": "./node_modules/oxlint/configuration_schema.json",
+	"plugins": ["typescript", "unicorn", "vue", "promise", "node"],
+	"jsPlugins": ["eslint-plugin-sonarjs", "eslint-plugin-unused-imports", "eslint-plugin-sort-class-members"],
+	"env": {
+		"browser": true,
+		"es2021": true,
+		"node": true
+	},
+	"ignorePatterns": [
+		".idea",
+		".vscode",
+		"build",
+		"dist",
+		"lib",
+		"mocks",
+		"node_modules",
+		"coverage",
+		"package-lock.json",
+		"pnpm-lock.yaml",
+		"yarn.lock"
+	],
+	"overrides": [
+		{
+			"files": ["**/*.js", "**/*.ts"],
+			"rules": {
+				"curly": "error",
+				"sonarjs/cognitive-complexity": "error",
+				"sonarjs/no-duplicate-string": "error",
+				"sort-class-members/sort-class-members": [
+					"error",
+					{
+						"order": ["constructor", "[getters]", "[methods]"],
+						"groups": {
+							"getters": [
+								{
+									"kind": "get",
+									"type": "method",
+									"sort": "alphabetical"
+								}
+							],
+							"methods": [
+								{
+									"type": "method",
+									"sort": "alphabetical"
+								}
+							]
+						}
+					}
+				],
+				"unused-imports/no-unused-imports": "error"
+			}
+		},
+		{
+			"files": ["**/*.vue"],
+			"rules": {
+				"unicorn/filename-case": [
+					"error",
+					{
+						"case": "pascalCase"
+					}
+				]
+			}
+		}
+	]
 }
