@@ -1,0 +1,44 @@
+{
+  "name": "triple-triad-solver",
+  "version": "0.0.1",
+  "description": "A web app, which employs a minimax strategy to solve Final Fantasy VIII's Triple Triad minigame.",
+  "main": "index.ts",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "lint": "oxlint",
+    "lint:fix": "oxlint --fix-suggestions",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/PhilipArmstead/Triple-Triad-Solver.git"
+  },
+  "keywords": [
+    "ffviii",
+    "Final",
+    "Fantasy",
+    "VIII",
+    "Triple",
+    "Triad",
+    "solver",
+    "minimax"
+  ],
+  "author": "Phil Armstead <philarmstead@mailbox.org>",
+  "license": "GPL-3.0-or-later",
+  "bugs": {
+    "url": "https://github.com/PhilipArmstead/Triple-Triad-Solver/issues"
+  },
+  "homepage": "https://github.com/PhilipArmstead/Triple-Triad-Solver#readme",
+  "devDependencies": {
+    "eslint-plugin-sonarjs": "^4.0.3",
+    "eslint-plugin-sort-class-members": "^1.22.1",
+    "eslint-plugin-unused-imports": "^4.4.1",
+    "oxlint": "^1.66.0",
+    "sass-embedded": "^1.104.1",
+    "typescript": "~6.0.2",
+    "vite": "^8.3.0"
+  }
+}
