@@ -1,82 +1,67 @@
 :root {
-	--accent: #aa3bff;
-	--bg: #fff;
-	--border: #e5e4e7;
-	--heading: system-ui, "Segoe UI", Roboto, sans-serif;
-	--mono: ui-monospace, Consolas, monospace;
+	--parchment-mid: #e8cd97;
+	--parchment-hi: #f6e8c4;
+	--parchment-lo: #9c6a2c;
+	--ink: #241606;
+	--ink-soft: #5b401f;
+	--gold: #c8992c;
+	--gold-hi: #f2d479;
+	--silver-hi: #f0f0f2;
+	--silver: #b9b9c0;
+	--silver-lo: #6f6f78;
+	--slate-hi: #6a7180;
+	--slate: #444b59;
+	--slate-lo: #262b36;
+	--p1: #4b7fc4;
+	--p1-hi: #a9c8ec;
+	--p2: #c9578c;
+	--p2-hi: #f0aac9;
+	--hint: #2f6b40;
+	--hint-hi: #9fd9ae;
+	--hint-bad: #9c3b3b;
+	--serif: "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
 	--sans: system-ui, "Segoe UI", Roboto, sans-serif;
-	--shadow: rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
-	--text: #6b6375;
-	background: var(--bg);
-	--accent-bg: rgba(170, 59, 255, 0.1);
+	--mono: ui-monospace, Consolas, monospace;
 
-	--code-bg: #f4f3ec;
-	--social-bg: rgba(244, 243, 236, 0.5);
-	--accent-border: rgba(170, 59, 255, 0 5);
-
-	color: var(--text);
-	color-scheme: light dark;
+	color: var(--ink);
+	color-scheme: light;
 	font: 18px/145% var(--sans);
 	-webkit-font-smoothing: antialiased;
 	font-synthesis: none;
-	--text-h: #08060d;
 	letter-spacing: 0.18px;
 	-moz-osx-font-smoothing: grayscale;
 	text-rendering: optimizeLegibility;
-
-	@media (max-width: 1024px) {
-		font-size: 16px;
-	}
-}
-
-@media (prefers-color-scheme: dark) {
-	:root {
-		--accent: #c084fc;
-		--bg: #16171d;
-		--border: #2e303a;
-		--shadow: rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
-		--text: #9ca3af;
-		--accent-bg: rgba(192, 132, 252, 0.15);
-		--code-bg: #1f2028;
-		--social-bg: rgba(47, 48, 58, 0.5);
-		--accent-border: rgba(192, 132, 252, 0.5);
-		--text-h: #f3f4f6;
-	}
-
-	#social .button-icon {
-		filter: invert(1) brightness(2);
-	}
 }
 
 body {
+	background:
+		radial-gradient(
+			ellipse 70% 60% at 50% 45%,
+			var(--parchment-hi) 0%,
+			var(--parchment-mid) 45%,
+			var(--parchment-lo) 100%
+		),
+		var(--parchment-mid);
+	align-items: center;
+	display: flex;
+	justify-content: center;
 	margin: 0;
+	min-height: 100svh;
 }
 
-h1,
-h2 {
-	color: var(--text-h);
-	font-family: var(--heading);
-	font-weight: 500;
+.filter-defs {
+	height: 0;
+	position: absolute;
+	width: 0;
 }
 
 h1 {
-	font-size: 56px;
-	letter-spacing: -1.68px;
-	margin: 32px 0;
-	@media (max-width: 1024px) {
-		font-size: 36px;
-		margin: 20px 0;
-	}
-}
-
-h2 {
-	font-size: 24px;
-	letter-spacing: -0.24px;
-	line-height: 118%;
-	margin: 0 0 8px;
-	@media (max-width: 1024px) {
-		font-size: 20px;
-	}
+	color: var(--ink);
+	font: 400 30px/1.1 var(--serif);
+	font-variant: small-caps;
+	letter-spacing: 1.5px;
+	margin: 0;
+	text-shadow: 0 1px 0 rgba(255, 255, 255, 0.45);
 }
 
 p {
@@ -84,9 +69,9 @@ p {
 }
 
 code {
-	background: var(--code-bg);
+	background: rgba(36, 22, 6, 0.08);
 	border-radius: 4px;
-	color: var(--text-h);
+	color: var(--ink);
 	display: inline-flex;
 	font-family: var(--mono);
 	font-size: 15px;
@@ -95,15 +80,67 @@ code {
 }
 
 #app {
-	border-inline: 1px solid var(--border);
+	border: 3px solid var(--ink);
+	border-radius: 4px;
+	box-shadow:
+		0 0 0 1px var(--gold),
+		inset 0 0 0 1px rgba(255, 255, 255, 0.35),
+		inset 0 0 60px rgba(120, 78, 24, 0.25),
+		0 12px 28px rgba(50, 30, 8, 0.45);
 	box-sizing: border-box;
 	display: flex;
 	flex-direction: column;
+	gap: 12px;
+	height: 100svh;
 	margin: 0 auto;
+	max-height: 700px;
 	max-width: 100%;
-	min-height: 100svh;
+	padding: 16px;
 	text-align: center;
-	width: 1126px;
+	width: 900px;
+}
+
+.app-header {
+	align-items: center;
+	border-bottom: 1px solid rgba(36, 22, 6, 0.35);
+	display: flex;
+	flex: none;
+	gap: 16px;
+	justify-content: space-between;
+	padding-bottom: 10px;
+}
+
+.new-game {
+	background: linear-gradient(180deg, var(--slate-hi) 0%, var(--slate) 55%, var(--slate-lo) 100%);
+	border: 1px solid var(--ink);
+	border-radius: 3px;
+	box-shadow:
+		inset 0 1px 0 rgba(255, 255, 255, 0.35),
+		0 2px 4px rgba(40, 24, 6, 0.4);
+	color: var(--silver-hi);
+	cursor: pointer;
+	font: 400 15px/1 var(--serif);
+	font-variant: small-caps;
+	letter-spacing: 1px;
+	padding: 10px 20px;
+	text-shadow: 0 1px 2px rgba(0, 0, 0, 0.7);
+	transition: filter 150ms ease;
+}
+
+.new-game:hover {
+	filter: brightness(1.2);
+}
+
+.new-game:active {
+	box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+#board {
+	display: flex;
+	flex: 1;
+	flex-direction: column;
+	gap: 12px;
+	min-height: 0;
 }
 
 .level-container {
@@ -126,55 +163,214 @@ code {
 }
 
 .game-board {
-	align-items: center;
+	align-items: stretch;
 	box-sizing: border-box;
 	display: grid;
+	flex: 1;
 	gap: 16px;
-	grid-template-columns: minmax(80px, 1fr) minmax(300px, 3fr) minmax(80px, 1fr);
-	max-height: 90vh;
-	padding: 16px;
+	grid-template-columns: 1fr auto 1fr;
+	min-height: 0;
+}
+
+.player-panel {
+	--player: var(--silver-lo);
+	--player-hi: var(--silver);
+	border: 1px solid rgba(36, 22, 6, 0.25);
+	border-radius: 4px;
+	box-sizing: border-box;
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	min-height: 0;
+	padding: 8px;
+	transition:
+		background 150ms ease,
+		border-color 150ms ease,
+		box-shadow 150ms ease;
+}
+
+.player-1-panel {
+	--player: var(--p1);
+	--player-hi: var(--p1-hi);
+}
+
+.player-2-panel {
+	--player: var(--p2);
+	--player-hi: var(--p2-hi);
+}
+
+.player-panel.is-active {
+	background: color-mix(in srgb, var(--player) 18%, transparent);
+	border-color: var(--gold-hi);
+	box-shadow:
+		0 0 0 2px var(--gold),
+		0 0 18px rgba(242, 212, 121, 0.8),
+		inset 0 0 24px color-mix(in srgb, var(--player) 26%, transparent);
+}
+
+.player-header {
+	color: var(--ink-soft);
+	flex: none;
+	font: 400 16px/1.2 var(--serif);
+	font-variant: small-caps;
+	letter-spacing: 0.8px;
+	text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4);
+}
+
+.player-panel.is-active .player-header {
+	color: var(--ink);
+	font-weight: 700;
+}
+
+.game-status {
+	align-items: center;
+	background: linear-gradient(180deg, var(--slate-hi) 0%, var(--slate) 55%, var(--slate-lo) 100%);
+	border: 1px solid var(--ink);
+	border-radius: 3px;
+	box-shadow:
+		inset 0 1px 0 rgba(255, 255, 255, 0.3),
+		0 2px 6px rgba(40, 24, 6, 0.4);
+	box-sizing: border-box;
+	color: var(--silver-hi);
+	display: flex;
+	flex: none;
+	font: 400 17px/1 var(--serif);
+	font-variant: small-caps;
+	justify-content: center;
+	letter-spacing: 1.2px;
+	padding: 11px 16px;
+	text-shadow: 0 1px 2px rgba(0, 0, 0, 0.75);
+}
+
+.game-status.turn-player-1 {
+	color: var(--p1-hi);
+}
+
+.game-status.turn-player-2 {
+	color: var(--p2-hi);
+}
+
+.game-status.is-over {
+	color: var(--gold-hi);
+	font-weight: 700;
 }
 
 .board-grid {
 	aspect-ratio: 5 / 7;
-	border: 1px solid var(--border);
+	background: rgba(36, 22, 6, 0.12);
+	border: 2px solid var(--ink);
+	box-shadow:
+		0 0 0 1px var(--gold),
+		inset 0 0 18px rgba(36, 22, 6, 0.35);
+	box-sizing: border-box;
 	display: grid;
 	grid-template-columns: repeat(3, 1fr);
+	height: 100%;
 	justify-self: center;
-	width: min(60vw, 64.2857vh, 600px);
+	max-width: 100%;
 }
 
 .board-cell {
 	aspect-ratio: 5 / 7;
-	border: 1px solid var(--border);
+	border: 1px solid rgba(36, 22, 6, 0.45);
+	box-sizing: border-box;
+	min-height: 0;
+	position: relative;
+	transition: box-shadow 120ms ease;
+}
+
+/**
+ * The solver's suggestion is painted as an overlay rather than with the cell's own
+ * background and box-shadow, so it stacks cleanly on top of the gold "available"
+ * ring that appears on every empty cell while a card is selected.
+ */
+.board-cell.is-hinted::after {
+	animation: hint-pulse 2s ease-in-out infinite;
+	background: rgba(79, 140, 95, 0.22);
+	box-shadow: inset 0 0 0 3px var(--hint-hi);
+	content: "";
+	inset: 0;
+	pointer-events: none;
+	position: absolute;
+}
+
+@keyframes hint-pulse {
+	50% {
+		opacity: 0.4;
+	}
+}
+
+.hint-score {
+	align-items: center;
+	color: var(--ink);
+	display: flex;
+	font: 700 24px/1 var(--serif);
+	inset: 0;
+	justify-content: center;
+	pointer-events: none;
+	position: absolute;
+	text-shadow:
+		0 1px 0 rgba(255, 255, 255, 0.65),
+		0 0 6px rgba(255, 255, 255, 0.8);
+	z-index: 1;
+}
+
+.hint-score.is-winning {
+	color: var(--hint);
+}
+
+.hint-score.is-losing {
+	color: var(--hint-bad);
+}
+
+/**
+ * The status bar is a flex container, so the hint becomes its own flex item and
+ * would otherwise lose the leading space that separates it from the turn label.
+ */
+.hint-text {
+	color: var(--hint-hi);
+	white-space: pre;
 }
 
 .game-board.has-selection .board-cell.available {
-	background: var(--accent-bg);
-	box-shadow: inset 0 0 0 3px var(--accent);
+	background: rgba(242, 212, 121, 0.25);
+	box-shadow: inset 0 0 0 3px var(--gold-hi);
 	cursor: pointer;
 }
 
 .game-board.has-selection .board-cell.available.drag-over {
-	background: var(--accent);
+	background: rgba(242, 212, 121, 0.6);
+	box-shadow: inset 0 0 0 3px var(--gold);
 }
 
 .card-hand {
 	align-items: center;
 	display: flex;
+	flex: 1;
 	flex-direction: column;
-	gap: 8px;
+	gap: 6px;
+	justify-content: flex-start;
+	min-height: 0;
 }
 
 .card-hand.inactive-hand {
-	opacity: 0.3;
+	opacity: 0.55;
 }
 
 .card-image {
-	border: 3px solid transparent;
+	border: 2px solid var(--silver-lo);
+	box-shadow:
+		0 0 0 1px var(--ink),
+		inset 0 0 0 1px var(--silver-hi),
+		0 2px 5px rgba(40, 24, 6, 0.45);
 	box-sizing: border-box;
 	display: block;
 	max-width: 100%;
+}
+
+/** Not a bad fallback in lieu of the actual cards */
+.card-image.player-2 {
+	filter: hue-rotate(64deg);
 }
 
 .board-cell .card-image {
@@ -184,36 +380,36 @@ code {
 }
 
 .card-hand .card-image {
-	height: min(112px, calc((90vh - 64px) / 5));
+	flex: 0 1 auto;
+	min-height: 0;
 	width: auto;
 }
 
-.card-image.player-1 {
-	border-color: #3182ce;
+.card-hand:not(.inactive-hand) .card-image {
+	cursor: pointer;
+	transition:
+		transform 120ms ease,
+		box-shadow 120ms ease;
 }
 
-.card-image.player-2 {
-	border-color: #ed64a6;
+.card-hand:not(.inactive-hand) .card-image:hover {
+	box-shadow:
+		0 0 0 1px var(--gold),
+		inset 0 0 0 1px var(--silver-hi),
+		0 0 12px rgba(242, 212, 121, 0.75);
+	transform: translateY(-2px);
 }
 
-@media (max-width: 700px) {
-	.game-board {
-		grid-template-columns: 1fr;
-		max-height: none;
-	}
+/** Outlined rather than shadowed so the suggestion survives the hover treatment. */
+.card-image.is-hinted {
+	animation: hint-pulse 2s ease-in-out infinite;
+	outline: 3px solid var(--hint-hi);
+	outline-offset: 2px;
+}
 
-	.card-hand {
-		flex-direction: row;
-		flex-wrap: wrap;
-		justify-content: center;
-	}
-
-	.game-board .board-grid {
-		grid-row: 1;
-		width: min(90vw, 600px);
-	}
-
-	.card-hand .card-image {
-		height: 112px;
+@media (prefers-reduced-motion: reduce) {
+	.board-cell.is-hinted::after,
+	.card-image.is-hinted {
+		animation: none;
 	}
 }

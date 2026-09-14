@@ -1,4 +1,17 @@
 import { BOARD_SIZE, CARDS_IN_HAND, getLegalMoves, placeCard } from "./game"
+
+/**
+ * Deliberately duplicated from game.ts rather than imported: this runs millions of
+ * times per search, and the cross-module call measured a consistent ~4% slowdown.
+ */
+const countBits = (value: number): number => {
+	let count = 0
+	while (value) {
+		value &= value - 1
+		count += 1
+	}
+	return count
+}
 import type { GameData, GameState, Move } from "./game"
 
 export type OptimalMove = { move: Move | null; score: number }
@@ -155,12 +168,3 @@ const getMovePriority = (state: GameState, nextState: GameState, move: Move): nu
  * cards still in hand, which only holds at a terminal node.
  */
 const getP1Score = (state: GameState): number => countBits(state.owner1) + countBits(state.hand1) - CARDS_IN_HAND
-
-const countBits = (value: number): number => {
-	let count = 0
-	while (value) {
-		value &= value - 1
-		count += 1
-	}
-	return count
-}

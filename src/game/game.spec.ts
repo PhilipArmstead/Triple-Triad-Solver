@@ -7,9 +7,12 @@ import {
 	createGameState,
 	drawBoard,
 	getCardAttribute,
+	getCardCount,
 	getCardsInHand,
 	getLegalMoves,
 	getOwnersAfterMove,
+	getWinner,
+	isGameOver,
 	isLegalMove,
 	placeCard,
 	type GameState,
@@ -29,6 +32,7 @@ const data = createGameData([strongCard], [weakCard])
 class FakeElement {
 	innerHTML = ""
 	className = ""
+	textContent = ""
 	children: FakeElement[] = []
 	listeners = new Map<string, (event: Event) => void>()
 	classList = {
@@ -133,6 +137,27 @@ describe("game state", () => {
 		expect(getCardAttribute(attributes, 0, 1)).toBe(3)
 		expect(getCardAttribute(attributes, 0, 8)).toBe(0)
 	})
+
+	it("counts owned cards on the board and in hand, and reports the result", () => {
+		const state: GameState = {
+			grid: [0, 1, 0, 1, 0, 1, 0, 1, null],
+			owner1: 0b01010101,
+			owner2: 0b10101010,
+			hand1: 0b1,
+			hand2: 0,
+			currentPlayer: 1,
+			moveCount: 8,
+		}
+
+		expect(getCardCount(state, 1)).toBe(5)
+		expect(getCardCount(state, 2)).toBe(4)
+		expect(isGameOver(state)).toBe(false)
+		expect(getWinner(state)).toBe(1)
+
+		expect(isGameOver({ ...state, moveCount: 9 })).toBe(true)
+		expect(getWinner({ ...state, hand1: 0 })).toBeNull()
+		expect(getWinner({ ...state, hand1: 0, owner1: 0b00010101 })).toBe(2)
+	})
 })
 
 describe("board rendering", () => {
@@ -148,7 +173,8 @@ describe("board rendering", () => {
 		drawBoard(entry as unknown as HTMLElement, data, createGameState(data, [strongCard], [weakCard], 1), onStateChange)
 		const board = entry.children[0]
 		const grid = board.children[1]
-		const p1Hand = board.children[2]
+		const p1Panel = board.children[2]
+		const p1Hand = p1Panel.children[1]
 		const cell = grid.children[0]
 
 		p1Hand.children[0].dispatch("click")
@@ -156,5 +182,65 @@ describe("board rendering", () => {
 		cell.dispatch("dragover", { preventDefault: vi.fn() } as unknown as Event)
 		cell.dispatch("drop", { preventDefault: vi.fn() } as unknown as Event)
 		expect(onStateChange).toHaveBeenCalledOnce()
+	})
+
+	it("labels each player with their card count and marks the active one", () => {
+		vi.stubGlobal("document", { createElement: () => new FakeElement() })
+		const entry = new FakeElement()
+		drawBoard(entry as unknown as HTMLElement, data, createGameState(data, [strongCard], [weakCard], 1), vi.fn())
+		const board = entry.children[0]
+		const [p2Panel, , p1Panel] = board.children
+
+		expect(p2Panel.children[0].textContent).toBe("Player 2 (1 card)")
+		expect(p1Panel.children[0].textContent).toBe("Player 1 (1 card)")
+		expect(p1Panel.className).toContain("is-active")
+		expect(p2Panel.className).not.toContain("is-active")
+		expect(p2Panel.children[1].className).toContain("inactive-hand")
+	})
+
+	it("announces whose turn it is while the game is running", () => {
+		vi.stubGlobal("document", { createElement: () => new FakeElement() })
+		const entry = new FakeElement()
+		drawBoard(entry as unknown as HTMLElement, data, createGameState(data, [strongCard], [weakCard], 2), vi.fn())
+		const status = entry.children[1]
+
+		expect(status.className).toBe("game-status turn-player-2")
+		expect(status.textContent).toBe("Player 2's turn")
+	})
+
+	it("announces the winner once the board is full", () => {
+		vi.stubGlobal("document", { createElement: () => new FakeElement() })
+		const state: GameState = {
+			grid: Array(9).fill(0),
+			owner1: 0b111111,
+			owner2: 0b111000000,
+			hand1: 0,
+			hand2: 0,
+			currentPlayer: 1,
+			moveCount: 9,
+		}
+		const entry = new FakeElement()
+		drawBoard(entry as unknown as HTMLElement, data, state, vi.fn())
+
+		expect(entry.children[1].className).toBe("game-status is-over")
+		expect(entry.children[1].textContent).toBe("Player 1 wins 6–3")
+		expect(entry.children[0].children[2].className).not.toContain("is-active")
+	})
+
+	it("announces a draw when neither player leads", () => {
+		vi.stubGlobal("document", { createElement: () => new FakeElement() })
+		const state: GameState = {
+			grid: Array(9).fill(0),
+			owner1: 0b1111,
+			owner2: 0b111110000,
+			hand1: 0b1,
+			hand2: 0,
+			currentPlayer: 1,
+			moveCount: 9,
+		}
+		const entry = new FakeElement()
+		drawBoard(entry as unknown as HTMLElement, data, state, vi.fn())
+
+		expect(entry.children[1].textContent).toBe("Draw — 5 cards each")
 	})
 })

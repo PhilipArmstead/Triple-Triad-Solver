@@ -39,7 +39,7 @@ export const createGameState = (
 	p2Hand: Card[],
 	currentPlayer: Player = Math.random() < 0.5 ? 1 : 2,
 ): GameState => {
-	const state: GameState = {
+	return {
 		grid: Array<Cell>(BOARD_SIZE).fill(null),
 		owner1: 0,
 		owner2: 0,
@@ -48,8 +48,6 @@ export const createGameState = (
 		currentPlayer,
 		moveCount: 0,
 	}
-
-	return state
 }
 
 export const getCard = (data: GameData, cardId: number): Card | null => data.cards[cardId] ?? null
@@ -177,16 +175,56 @@ export const generateRandomDeck = (cards: Card[]): Card[] => {
 	return shuffledCards.slice(0, CARDS_IN_HAND)
 }
 
+export const countBits = (value: number): number => {
+	let count = 0
+	while (value) {
+		value &= value - 1
+		count += 1
+	}
+	return count
+}
+
+/**
+ * How many cards a player holds, counting those they own on the board as well as
+ * those still in their hand. The two players' counts always sum to the deck size.
+ */
+export const getCardCount = (state: GameState, player: Player): number =>
+	player === 1 ? countBits(state.owner1) + countBits(state.hand1) : countBits(state.owner2) + countBits(state.hand2)
+
+export const isGameOver = (state: GameState): boolean => state.moveCount === BOARD_SIZE
+
+/** The player holding the most cards once the board is full, or null for a draw. */
+export const getWinner = (state: GameState): Player | null => {
+	const p1Count = getCardCount(state, 1)
+	const p2Count = getCardCount(state, 2)
+	if (p1Count === p2Count) {
+		return null
+	}
+	return p1Count > p2Count ? 1 : 2
+}
+
+/**
+ * The nodes applyHint needs to mark up. Handing them back from the draw avoids
+ * re-querying the tree, and keeps the hint's knowledge of the markup in one place.
+ */
+export type BoardView = {
+	cells: HTMLElement[]
+	activeHandCards: Map<number, HTMLElement>
+	hintText: HTMLElement
+}
+
 export const drawBoard = (
 	entry: HTMLElement,
 	data: GameData,
 	state: GameState,
 	onStateChange: (state: GameState) => void,
-): void => {
+): BoardView => {
 	entry.innerHTML = ""
 
 	const board = document.createElement("div")
 	board.className = "game-board"
+	const cells: HTMLElement[] = []
+	const activeHandCards = new Map<number, HTMLElement>()
 	let selectedCardId: number | null = null
 	const setSelection = (cardId: number | null): void => {
 		selectedCardId = cardId
@@ -231,14 +269,105 @@ export const drawBoard = (
 			onStateChange(placeCard(data, state, { cardId: selectedCardId, position })!)
 		})
 		grid.append(cell)
+		cells.push(cell)
 	}
 
 	board.append(
-		renderHand(getCardsInHand(data, state, 2), 2, state, data, setSelection),
+		renderPlayerPanel(2, state, data, setSelection, activeHandCards),
 		grid,
-		renderHand(getCardsInHand(data, state, 1), 1, state, data, setSelection),
+		renderPlayerPanel(1, state, data, setSelection, activeHandCards),
 	)
-	entry.append(board)
+	const [status, hintText] = renderStatus(state)
+	entry.append(board, status)
+	return { cells, activeHandCards, hintText }
+}
+
+/** The move the solver recommends, with its score expressed from player one's view. */
+export type Hint = {
+	move: Move
+	score: number
+}
+
+/**
+ * Marks up an already-drawn board with the solver's recommendation: the target cell,
+ * the card to play, the projected final margin and a line of advice in the status bar.
+ *
+ * The search runs asynchronously, so this annotates the existing DOM rather than
+ * redrawing, which would discard a card the player selected while it was running.
+ * Call it at most once per drawBoard; each draw starts from a clean board.
+ */
+export const applyHint = (view: BoardView, data: GameData, state: GameState, hint: Hint | null): void => {
+	if (hint === null) {
+		return
+	}
+
+	// The search scores from player one's perspective, so player two's view is the
+	// negation: the board always reads "how far ahead the player to move ends up".
+	const score = state.currentPlayer === 1 ? hint.score : -hint.score
+	const signed = `${score > 0 ? "+" : ""}${score}`
+
+	const cell = view.cells[hint.move.position]
+	cell.classList.add("is-hinted")
+	const scoreLabel = document.createElement("span")
+	scoreLabel.className = `hint-score${score > 0 ? " is-winning" : ""}${score < 0 ? " is-losing" : ""}`
+	scoreLabel.textContent = signed
+	cell.append(scoreLabel)
+
+	view.activeHandCards.get(hint.move.cardId)?.classList.add("is-hinted")
+	view.hintText.textContent = ` — play ${data.cards[hint.move.cardId].name} here (${signed})`
+}
+
+/**
+ * A player's name, card count and hand. The panel carries the turn highlight, so
+ * whose turn it is reads from the board itself and not just the status line.
+ */
+const renderPlayerPanel = (
+	player: Player,
+	state: GameState,
+	data: GameData,
+	setSelection: (cardId: number | null) => void,
+	activeHandCards: Map<number, HTMLElement>,
+): HTMLDivElement => {
+	const isActive = !isGameOver(state) && state.currentPlayer === player
+	const panel = document.createElement("div")
+	panel.className = `player-panel player-${player}-panel${isActive ? " is-active" : ""}`
+
+	const header = document.createElement("div")
+	header.className = "player-header"
+	const cardCount = getCardCount(state, player)
+	header.textContent = `Player ${player} (${cardCount} card${cardCount === 1 ? "" : "s"})`
+
+	panel.append(
+		header,
+		renderHand(getCardsInHand(data, state, player), player, state, data, setSelection, activeHandCards),
+	)
+	return panel
+}
+
+/**
+ * Returns the status bar and the empty node the solver's advice lands in. The hint
+ * is a separate node so applyHint can fill it without rebuilding the status text.
+ */
+const renderStatus = (state: GameState): [HTMLDivElement, HTMLSpanElement] => {
+	const status = document.createElement("div")
+	const hintText = document.createElement("span")
+	hintText.className = "hint-text"
+
+	if (isGameOver(state)) {
+		const winner = getWinner(state)
+		status.className = "game-status is-over"
+		status.append(
+			winner === null
+				? `Draw — ${getCardCount(state, 1)} cards each`
+				: `Player ${winner} wins ${getCardCount(state, winner)}–${getCardCount(state, winner === 1 ? 2 : 1)}`,
+		)
+	} else {
+		status.className = `game-status turn-player-${state.currentPlayer}`
+		status.append(`Player ${state.currentPlayer}'s turn`)
+	}
+
+	status.append(hintText)
+	return [status, hintText]
 }
 
 const renderHand = (
@@ -247,13 +376,15 @@ const renderHand = (
 	state: GameState,
 	data: GameData,
 	setSelection: (cardId: number | null) => void,
+	activeHandCards: Map<number, HTMLElement>,
 ): HTMLDivElement => {
 	const hand = document.createElement("div")
-	hand.className = `card-hand${owner === state.currentPlayer ? "" : " inactive-hand"}`
+	hand.className = `card-hand${owner === state.currentPlayer && !isGameOver(state) ? "" : " inactive-hand"}`
 	for (const card of cardsInHand) {
 		const image = createCardImage(card, owner)
 		const cardId = data.cardIds.get(card)
 		if (owner === state.currentPlayer && cardId !== undefined) {
+			activeHandCards.set(cardId, image)
 			image.draggable = true
 			image.addEventListener("click", () => setSelection(cardId))
 			image.addEventListener("dragstart", () => setSelection(cardId))
