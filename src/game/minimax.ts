@@ -21,11 +21,11 @@ export type OptimalMove = { move: Move | null; score: number }
  * A node that pruned never saw all its children, so its score is only a bound
  * and may only be reused when the current window makes that bound decisive.
  */
-const EXACT = 0
-const LOWER_BOUND = 1
-const UPPER_BOUND = 2
+export const EXACT = 0
+export const LOWER_BOUND = 1
+export const UPPER_BOUND = 2
 
-type CacheEntry = OptimalMove & { bound: typeof EXACT | typeof LOWER_BOUND | typeof UPPER_BOUND }
+export type CacheEntry = OptimalMove & { bound: typeof EXACT | typeof LOWER_BOUND | typeof UPPER_BOUND }
 
 type CacheProbe = { hit: CacheEntry | null; alpha: number; beta: number }
 
@@ -33,7 +33,7 @@ type CacheProbe = { hit: CacheEntry | null; alpha: number; beta: number }
  * How much a searched score tells us. A node that never improved on the window
  * it was given only yields a bound, because its children were cut short.
  */
-const classifyBound = (score: number, alpha: number, beta: number) =>
+export const classifyBound = (score: number, alpha: number, beta: number) =>
 	score <= alpha ? UPPER_BOUND : score >= beta ? LOWER_BOUND : EXACT
 
 /**
@@ -41,7 +41,7 @@ const classifyBound = (score: number, alpha: number, beta: number) =>
  * narrows the window it must be searched with. An exact entry always settles it;
  * a bound only does so when it already falls outside the current window.
  */
-const probeCache = (cached: CacheEntry | undefined, alpha: number, beta: number): CacheProbe => {
+export const probeCache = (cached: CacheEntry | undefined, alpha: number, beta: number): CacheProbe => {
 	if (!cached) {
 		return { hit: null, alpha, beta }
 	}

@@ -1,11 +1,14 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
 
+import { FakeElement } from "../test-utils/fake-element"
 import type { Card } from "../types"
 import {
+	applyHint,
 	createCardImage,
 	createGameData,
 	createGameState,
 	drawBoard,
+	getCard,
 	getCardAttribute,
 	getCardCount,
 	getCardsInHand,
@@ -25,42 +28,11 @@ const card = (name: string, value: number): Card => ({
 	attributes: { north: value, south: value, east: value, west: value },
 })
 
+const HAS_SELECTION = "has-selection"
+
 const strongCard = card("strong", 9)
 const weakCard = card("weak", 1)
 const data = createGameData([strongCard], [weakCard])
-
-class FakeElement {
-	innerHTML = ""
-	className = ""
-	textContent = ""
-	children: FakeElement[] = []
-	listeners = new Map<string, (event: Event) => void>()
-	classList = {
-		add: (name: string) => {
-			this.className += ` ${name}`
-		},
-		remove: (name: string) => {
-			this.className = this.className.replace(` ${name}`, "")
-		},
-		toggle: (name: string, enabled: boolean) => (enabled ? this.classList.add(name) : this.classList.remove(name)),
-	}
-
-	addEventListener(name: string, listener: EventListener): void {
-		this.listeners.set(name, listener as (event: Event) => void)
-	}
-
-	append(...elements: FakeElement[]): void {
-		this.children.push(...elements)
-	}
-
-	dispatch(name: string, event = {} as Event): void {
-		this.listeners.get(name)?.(event)
-	}
-
-	querySelectorAll<T extends FakeElement>(): T[] {
-		return this.children as T[]
-	}
-}
 
 afterEach(() => {
 	vi.restoreAllMocks()
@@ -178,7 +150,7 @@ describe("board rendering", () => {
 		const cell = grid.children[0]
 
 		p1Hand.children[0].dispatch("click")
-		expect(board.className).toContain("has-selection")
+		expect(board.className).toContain(HAS_SELECTION)
 		cell.dispatch("dragover", { preventDefault: vi.fn() } as unknown as Event)
 		cell.dispatch("drop", { preventDefault: vi.fn() } as unknown as Event)
 		expect(onStateChange).toHaveBeenCalledOnce()
@@ -242,5 +214,199 @@ describe("board rendering", () => {
 		drawBoard(entry as unknown as HTMLElement, data, state, vi.fn())
 
 		expect(entry.children[1].textContent).toBe("Draw — 5 cards each")
+	})
+})
+
+describe("optimal move hint", () => {
+	const hintedState = (currentPlayer: 1 | 2): GameState =>
+		createGameState(data, [strongCard], [weakCard], currentPlayer)
+
+	it("marks the target cell and card, and reads the score from player one's view", () => {
+		vi.stubGlobal("document", { createElement: () => new FakeElement() })
+		const entry = new FakeElement()
+		const state = hintedState(1)
+		const view = drawBoard(entry as unknown as HTMLElement, data, state, vi.fn())
+
+		applyHint(view, data, state, { move: { cardId: 0, position: 4 }, score: 2 })
+
+		const cell = view.cells[4] as unknown as FakeElement
+		expect(cell.className).toContain("is-hinted")
+		expect(cell.children[0].className).toBe("hint-score is-winning")
+		expect(cell.children[0].textContent).toBe("+2")
+		expect((view.activeHandCards.get(0) as unknown as FakeElement).className).toContain("is-hinted")
+		expect(view.hintText.textContent).toBe(" — play strong here (+2)")
+		expect(view.cells[0].className).not.toContain("is-hinted")
+	})
+
+	it("negates the score for player two so it always favours the player to move", () => {
+		vi.stubGlobal("document", { createElement: () => new FakeElement() })
+		const entry = new FakeElement()
+		const state = hintedState(2)
+		const view = drawBoard(entry as unknown as HTMLElement, data, state, vi.fn())
+
+		applyHint(view, data, state, { move: { cardId: 1, position: 0 }, score: 3 })
+
+		const cell = view.cells[0] as unknown as FakeElement
+		expect(cell.children[0].className).toBe("hint-score is-losing")
+		expect(cell.children[0].textContent).toBe("-3")
+		expect(view.hintText.textContent).toBe(" — play weak here (-3)")
+	})
+
+	it("does nothing without a suggestion, and tolerates a card outside the active hand", () => {
+		vi.stubGlobal("document", { createElement: () => new FakeElement() })
+		const entry = new FakeElement()
+		const state = hintedState(1)
+		const view = drawBoard(entry as unknown as HTMLElement, data, state, vi.fn())
+
+		applyHint(view, data, state, null)
+		expect(view.hintText.textContent).toBe("")
+		expect(view.cells.every((cell) => !cell.className.includes("is-hinted"))).toBe(true)
+
+		applyHint(view, data, state, { move: { cardId: 1, position: 8 }, score: 0 })
+		expect(view.cells[8].className).toContain("is-hinted")
+		const drawLabel = (view.cells[8] as unknown as FakeElement).children[0]
+		expect(drawLabel.textContent).toBe("0")
+		expect(drawLabel.className).toBe("hint-score")
+	})
+})
+
+describe("unknown cards", () => {
+	const stranger = card("stranger", 5)
+
+	it("returns null for a card id the data does not hold", () => {
+		expect(getCard(data, 99)).toBeNull()
+	})
+
+	it("leaves cards outside the data out of the hand mask", () => {
+		const state = createGameState(data, [strongCard, stranger], [weakCard], 1)
+
+		expect(state.hand1).toBe(0b1)
+		expect(getCardsInHand(data, state, 1)).toEqual([strongCard])
+	})
+
+	it("draws a cell whose card is missing from the data as empty", () => {
+		vi.stubGlobal("document", { createElement: () => new FakeElement() })
+		const state: GameState = {
+			grid: [99, null, null, null, null, null, null, null, null],
+			owner1: 0b1,
+			owner2: 0,
+			hand1: 0b10,
+			hand2: 0,
+			currentPlayer: 1,
+			moveCount: 1,
+		}
+		const entry = new FakeElement()
+		drawBoard(entry as unknown as HTMLElement, data, state, vi.fn())
+
+		expect(entry.children[0].children[1].children[0].children).toHaveLength(0)
+	})
+})
+
+describe("starting player", () => {
+	it("tosses a coin when no player is given", () => {
+		vi.spyOn(Math, "random").mockReturnValue(0.49)
+		expect(createGameState(data, [strongCard], [weakCard]).currentPlayer).toBe(1)
+
+		vi.spyOn(Math, "random").mockReturnValue(0.5)
+		expect(createGameState(data, [strongCard], [weakCard]).currentPlayer).toBe(2)
+	})
+})
+
+describe("board interaction", () => {
+	/** A board with the strong card already played, so cell 0 is occupied and cell 1 is free. */
+	const startedState: GameState = {
+		grid: [0, null, null, null, null, null, null, null, null],
+		owner1: 0b1,
+		owner2: 0,
+		hand1: 0b10,
+		hand2: 0,
+		currentPlayer: 1,
+		moveCount: 1,
+	}
+
+	const draw = (state: GameState) => {
+		vi.stubGlobal("document", { createElement: () => new FakeElement() })
+		const entry = new FakeElement()
+		const onStateChange = vi.fn()
+		drawBoard(entry as unknown as HTMLElement, data, state, onStateChange)
+		const board = entry.children[0]
+		return { onStateChange, board, grid: board.children[1], hand: board.children[2].children[1] }
+	}
+
+	it("plays the selected card into a clicked cell", () => {
+		const { onStateChange, grid, hand } = draw(startedState)
+
+		hand.children[0].dispatch("click")
+		grid.children[1].dispatch("click")
+
+		expect(onStateChange).toHaveBeenCalledOnce()
+		expect(onStateChange.mock.calls[0]![0]).toMatchObject({ moveCount: 2, currentPlayer: 2 })
+	})
+
+	it("ignores interaction with a cell that already holds a card", () => {
+		const { onStateChange, grid, hand } = draw(startedState)
+		const preventDefault = vi.fn()
+
+		hand.children[0].dispatch("click")
+		grid.children[0].dispatch("click")
+		grid.children[0].dispatch("dragover", { preventDefault } as unknown as Event)
+		grid.children[0].dispatch("drop", { preventDefault } as unknown as Event)
+
+		expect(onStateChange).not.toHaveBeenCalled()
+		expect(preventDefault).toHaveBeenCalledOnce()
+		expect(grid.children[0].className).not.toContain("drag-over")
+	})
+
+	it("ignores interaction while no card is selected", () => {
+		const { onStateChange, grid } = draw(startedState)
+		const preventDefault = vi.fn()
+
+		grid.children[1].dispatch("click")
+		grid.children[1].dispatch("dragover", { preventDefault } as unknown as Event)
+		grid.children[1].dispatch("drop", { preventDefault } as unknown as Event)
+
+		expect(onStateChange).not.toHaveBeenCalled()
+		expect(preventDefault).toHaveBeenCalledOnce()
+	})
+
+	it("highlights a cell on drag over and clears it again on drag leave", () => {
+		const { grid, hand } = draw(startedState)
+
+		hand.children[0].dispatch("click")
+		grid.children[1].dispatch("dragover", { preventDefault: vi.fn() } as unknown as Event)
+		expect(grid.children[1].className).toContain("drag-over")
+
+		grid.children[1].dispatch("dragleave")
+		expect(grid.children[1].className).not.toContain("drag-over")
+	})
+
+	it("selects a card on drag start and clears the selection on drag end", () => {
+		const { board, grid, hand } = draw(startedState)
+
+		hand.children[0].dispatch("dragstart")
+		expect(board.className).toContain(HAS_SELECTION)
+		expect(grid.children[1].className).toContain("available")
+		expect(grid.children[0].className).not.toContain("available")
+
+		hand.children[0].dispatch("dragend")
+		expect(board.className).not.toContain(HAS_SELECTION)
+		expect(grid.children[1].className).not.toContain("available")
+	})
+
+	it("announces a player two win", () => {
+		const state: GameState = {
+			grid: Array(9).fill(0),
+			owner1: 0b111,
+			owner2: 0b111111000,
+			hand1: 0,
+			hand2: 0,
+			currentPlayer: 1,
+			moveCount: 9,
+		}
+		vi.stubGlobal("document", { createElement: () => new FakeElement() })
+		const entry = new FakeElement()
+		drawBoard(entry as unknown as HTMLElement, data, state, vi.fn())
+
+		expect(entry.children[1].textContent).toBe("Player 2 wins 6–3")
 	})
 })

@@ -29,7 +29,7 @@ const render = (nextState = state): void => {
 			const start = performance.now()
 			const { move, score } = getOptimalMove(state, data)
 			const end = performance.now()
-			applyHint(view, data, state, move === null ? null : { move, score })
+			applyHint(view, data, state, { move: move!, score })
 			console.log(
 				`Optimal move for %cPlayer ${state.currentPlayer}%c: %c${data.cards[move!.cardId].name}%c to position %c${move!.position}%c. Expected score: %c${score > 0 ? "+" : ""}${score}%c. (calculated in ${Math.round(end - start)} ms)`,
 				`color: ${state.currentPlayer === 1 ? "#0f0" : "#f00"}; font-weight: bold;`,

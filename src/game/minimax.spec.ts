@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest"
 
 import type { Card } from "../types"
-import { createGameData, placeCard, type GameState } from "./game"
-import { getOptimalMove } from "./minimax"
+import { createGameData, createGameState, placeCard, type GameState } from "./game"
+import { classifyBound, EXACT, getOptimalMove, LOWER_BOUND, probeCache, UPPER_BOUND, type CacheEntry } from "./minimax"
 
 const card = (name: string, value: number): Card => ({
 	name,
@@ -135,5 +135,112 @@ describe("optimal move search", () => {
 		const result = getOptimalMove(state, tacticalData)
 		expect(result.move).toEqual({ cardId: 0, position: 1 })
 		expect(result.score).toBeGreaterThan(0)
+	})
+})
+
+describe("transposition cache", () => {
+	const c = (name: string, north: number, east: number, south: number, west: number): Card => ({
+		name,
+		imageFilename: `${name}.png`,
+		level: 1,
+		attributes: { north, east, south, west },
+	})
+
+	const deck = [
+		c("Geezard", 1, 4, 1, 5),
+		c("Funguar", 5, 1, 1, 3),
+		c("Bite Bug", 1, 3, 3, 5),
+		c("Red Bat", 6, 1, 1, 2),
+		c("Blobra", 2, 3, 1, 5),
+		c("Gayla", 2, 1, 4, 4),
+		c("Gesper", 1, 5, 4, 1),
+		c("Fastitocalon-F", 3, 5, 2, 1),
+		c("Blood Soul", 2, 1, 6, 6),
+		c("Caterchipillar", 4, 2, 4, 3),
+	]
+
+	/**
+	 * A seven-ply search over two full hands. The earlier tests all resolve within a
+	 * ply or two, which is too shallow for the search to prune or to reach the same
+	 * position by two different move orders; this one does both, so it is what
+	 * exercises the cache's exact and bounded entries and the cutoffs that create them.
+	 */
+	it("agrees with a full-width search once cutoffs and repeated positions come into play", () => {
+		const p1Hand = deck.slice(0, 5)
+		const p2Hand = deck.slice(5)
+		const deepData = createGameData(p1Hand, p2Hand)
+		const opening = createGameState(deepData, p1Hand, p2Hand, 1)
+		const state = placeCard(deepData, placeCard(deepData, opening, { cardId: 0, position: 0 })!, {
+			cardId: 5,
+			position: 4,
+		})!
+
+		expect(state.moveCount).toBe(2)
+		expect(getOptimalMove(state, deepData)).toEqual({ move: { cardId: 3, position: 6 }, score: 0 })
+	})
+})
+
+/**
+ * The cache's bound handling cannot be pinned down through getOptimalMove: an
+ * unsound cache still returns the right answer on every position reachable in a
+ * test, because a misused bound is one the parent's window would have discarded
+ * anyway. These assert the contract directly instead.
+ */
+describe("cache bounds", () => {
+	const entry = (score: number, bound: CacheEntry["bound"]): CacheEntry => ({
+		move: { cardId: 0, position: 0 },
+		score,
+		bound,
+	})
+
+	describe("classifying a searched score", () => {
+		it("is exact when the score improved on the window without exceeding it", () => {
+			expect(classifyBound(0, -1, 1)).toBe(EXACT)
+		})
+
+		it("is an upper bound when the node failed low", () => {
+			expect(classifyBound(-1, -1, 1)).toBe(UPPER_BOUND)
+			expect(classifyBound(-2, -1, 1)).toBe(UPPER_BOUND)
+		})
+
+		it("is a lower bound when the node failed high", () => {
+			expect(classifyBound(1, -1, 1)).toBe(LOWER_BOUND)
+			expect(classifyBound(2, -1, 1)).toBe(LOWER_BOUND)
+		})
+	})
+
+	describe("probing", () => {
+		it("leaves the window alone when nothing is cached", () => {
+			expect(probeCache(undefined, -1, 1)).toEqual({ hit: null, alpha: -1, beta: 1 })
+		})
+
+		it("settles the node on an exact entry whatever the window", () => {
+			const cached = entry(0, EXACT)
+			expect(probeCache(cached, -1, 1)).toEqual({ hit: cached, alpha: -1, beta: 1 })
+			expect(probeCache(cached, 5, 9)).toEqual({ hit: cached, alpha: 5, beta: 9 })
+		})
+
+		it("settles the node on a lower bound only once it reaches beta", () => {
+			const cached = entry(4, LOWER_BOUND)
+			expect(probeCache(cached, -1, 4)).toEqual({ hit: cached, alpha: -1, beta: 4 })
+		})
+
+		it("raises alpha instead when a lower bound falls short of beta", () => {
+			const cached = entry(2, LOWER_BOUND)
+			expect(probeCache(cached, -1, 4)).toEqual({ hit: null, alpha: 2, beta: 4 })
+			// A bound weaker than the window we already have must not widen it.
+			expect(probeCache(cached, 3, 4)).toEqual({ hit: null, alpha: 3, beta: 4 })
+		})
+
+		it("settles the node on an upper bound only once it reaches alpha", () => {
+			const cached = entry(-1, UPPER_BOUND)
+			expect(probeCache(cached, -1, 4)).toEqual({ hit: cached, alpha: -1, beta: 4 })
+		})
+
+		it("lowers beta instead when an upper bound sits above alpha", () => {
+			const cached = entry(2, UPPER_BOUND)
+			expect(probeCache(cached, -1, 4)).toEqual({ hit: null, alpha: -1, beta: 2 })
+			expect(probeCache(cached, -1, 1)).toEqual({ hit: null, alpha: -1, beta: 1 })
+		})
 	})
 })
