@@ -1,4 +1,4 @@
-import type { Card } from '../types'
+import type { Card } from "../types"
 
 export type Player = 1 | 2
 export type Cell = number | null
@@ -24,8 +24,8 @@ export type GameState = {
 	moveCount: number
 }
 
-const BOARD_SIZE = 9
-const CARDS_IN_HAND = 5
+export const BOARD_SIZE = 9
+export const CARDS_IN_HAND = 5
 
 export const createGameData = (p1Hand: Card[], p2Hand: Card[]): GameData => {
 	const cards = [...new Set([...p1Hand, ...p2Hand])]
@@ -38,15 +38,19 @@ export const createGameState = (
 	p1Hand: Card[],
 	p2Hand: Card[],
 	currentPlayer: Player = Math.random() < 0.5 ? 1 : 2,
-): GameState => ({
-	grid: Array<Cell>(BOARD_SIZE).fill(null),
-	owner1: 0,
-	owner2: 0,
-	hand1: getHandMask(data, p1Hand),
-	hand2: getHandMask(data, p2Hand),
-	currentPlayer,
-	moveCount: 0,
-})
+): GameState => {
+	const state: GameState = {
+		grid: Array<Cell>(BOARD_SIZE).fill(null),
+		owner1: 0,
+		owner2: 0,
+		hand1: getHandMask(data, p1Hand),
+		hand2: getHandMask(data, p2Hand),
+		currentPlayer,
+		moveCount: 0,
+	}
+
+	return state
+}
 
 export const getCard = (data: GameData, cardId: number): Card | null => data.cards[cardId] ?? null
 
