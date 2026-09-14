@@ -3,11 +3,36 @@
  * exercise the real rendering code without pulling in a full DOM implementation.
  */
 export class FakeElement {
-	innerHTML = ""
 	className = ""
 	textContent = ""
+	id = ""
+	value = ""
+	label = ""
+	title = ""
+	type = ""
+	placeholder = ""
+	disabled = false
+	attributes = new Map<string, string>()
 	children: FakeElement[] = []
 	listeners = new Map<string, (event: Event) => void>()
+
+	#innerHTML = ""
+
+	/**
+	 * Assigning innerHTML replaces everything inside the element, so the stub drops
+	 * its children to match. The renderers use it to empty a node before redrawing,
+	 * and without this they would appear to append to the previous draw forever.
+	 */
+	get innerHTML(): string {
+		return this.#innerHTML
+	}
+
+	set innerHTML(value: string) {
+		this.#innerHTML = value
+		this.children = []
+		this.textContent = ""
+	}
+
 	classList = {
 		add: (name: string) => {
 			this.className += ` ${name}`
@@ -38,5 +63,9 @@ export class FakeElement {
 
 	querySelectorAll<T extends FakeElement>(): T[] {
 		return this.children as T[]
+	}
+
+	setAttribute(name: string, value: string): void {
+		this.attributes.set(name, value)
 	}
 }

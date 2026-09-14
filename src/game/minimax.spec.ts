@@ -169,7 +169,7 @@ describe("transposition cache", () => {
 		const p1Hand = deck.slice(0, 5)
 		const p2Hand = deck.slice(5)
 		const deepData = createGameData(p1Hand, p2Hand)
-		const opening = createGameState(deepData, p1Hand, p2Hand, 1)
+		const opening = createGameState(deepData, 1)
 		const state = placeCard(deepData, placeCard(deepData, opening, { cardId: 0, position: 0 })!, {
 			cardId: 5,
 			position: 4,

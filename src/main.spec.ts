@@ -35,7 +35,15 @@ vi.mock("./game/game", async (importOriginal) => {
 
 const hint = (move: Move, score: number) => ({ move, score })
 
+/**
+ * Positions within the builder's markup. The app now opens on the deck screen, so
+ * every test has to deal a pair of hands and commit them before a board exists.
+ */
+const fillButtonFor = (board: FakeElement, player: 1 | 2) => board.children[0].children[player].children[2].children[1]
+const startButtonOf = (board: FakeElement) => board.children[1].children[0]
+
 const loadApp = async (optimal: { move: Move; score: number }) => {
+	const board = new FakeElement()
 	const newGameButton = new FakeElement()
 	const log = vi.fn()
 	mocks.draws.length = 0
@@ -45,7 +53,7 @@ const loadApp = async (optimal: { move: Move; score: number }) => {
 	vi.spyOn(Math, "random").mockReturnValue(0)
 	vi.stubGlobal("document", {
 		createElement: () => new FakeElement(),
-		querySelector: (selector: string) => (selector === "#board" ? new FakeElement() : newGameButton),
+		querySelector: (selector: string) => (selector === "#board" ? board : newGameButton),
 	})
 	vi.stubGlobal("performance", { now: () => 0 })
 	vi.stubGlobal("console", { log })
@@ -53,8 +61,15 @@ const loadApp = async (optimal: { move: Move; score: number }) => {
 	vi.resetModules()
 	await import("./main")
 
+	/** Fills both hands at random and commits them, which is what starts the game. */
+	const startGame = (): void => {
+		fillButtonFor(board, 1).dispatch("click")
+		fillButtonFor(board, 2).dispatch("click")
+		startButtonOf(board).dispatch("click")
+	}
+
 	const latest = () => mocks.draws[mocks.draws.length - 1]!
-	return { log, newGameButton, latest }
+	return { log, board, newGameButton, startGame, latest }
 }
 
 afterEach(() => {
@@ -64,12 +79,24 @@ afterEach(() => {
 })
 
 describe("app entry", () => {
-	it("deals a fresh game and solves it after the opening delay", async () => {
-		const { log, latest } = await loadApp(hint({ cardId: 0, position: 4 }, 2))
+	it("opens on the deck builder rather than dealing a game", async () => {
+		const { board } = await loadApp(hint({ cardId: 0, position: 4 }, 2))
+
+		expect(board.children[0].className).toBe("deck-builder")
+		expect(mocks.draws).toHaveLength(0)
+		// Nothing to solve until the player commits a pair of hands.
+		vi.advanceTimersByTime(100)
+		expect(mocks.getOptimalMove).not.toHaveBeenCalled()
+	})
+
+	it("deals the chosen hands and solves them after the opening delay", async () => {
+		const { log, startGame, latest } = await loadApp(hint({ cardId: 0, position: 4 }, 2))
+		startGame()
 
 		expect(mocks.draws).toHaveLength(1)
 		expect(latest().state.moveCount).toBe(0)
 		expect(latest().state.currentPlayer).toBe(1)
+		expect(latest().data.cards).toHaveLength(10)
 
 		// The opening solve is deferred so the board paints before the search blocks.
 		vi.advanceTimersByTime(99)
@@ -86,7 +113,8 @@ describe("app entry", () => {
 	})
 
 	it("annotates the board with the solver's recommendation", async () => {
-		const { latest } = await loadApp(hint({ cardId: 0, position: 4 }, 2))
+		const { startGame, latest } = await loadApp(hint({ cardId: 0, position: 4 }, 2))
+		startGame()
 		vi.advanceTimersByTime(100)
 
 		const { view, data } = latest()
@@ -95,7 +123,8 @@ describe("app entry", () => {
 	})
 
 	it("skips the solve once the board is full", async () => {
-		const { log, latest } = await loadApp(hint({ cardId: 0, position: 4 }, 2))
+		const { log, startGame, latest } = await loadApp(hint({ cardId: 0, position: 4 }, 2))
+		startGame()
 		vi.advanceTimersByTime(100)
 		log.mockClear()
 		mocks.getOptimalMove.mockClear()
@@ -109,7 +138,8 @@ describe("app entry", () => {
 	})
 
 	it("solves later moves immediately and reads negative scores from player two's view", async () => {
-		const { log, latest } = await loadApp(hint({ cardId: 1, position: 7 }, -3))
+		const { log, startGame, latest } = await loadApp(hint({ cardId: 1, position: 7 }, -3))
+		startGame()
 		vi.advanceTimersByTime(100)
 		log.mockClear()
 
@@ -126,7 +156,8 @@ describe("app entry", () => {
 	})
 
 	it("reuses the current state when re-rendered without one", async () => {
-		const { latest } = await loadApp(hint({ cardId: 0, position: 4 }, 2))
+		const { startGame, latest } = await loadApp(hint({ cardId: 0, position: 4 }, 2))
+		startGame()
 		const before = latest().state
 
 		;(latest().rerender as () => void)()
@@ -135,11 +166,24 @@ describe("app entry", () => {
 		expect(latest().state).toBe(before)
 	})
 
+	it("returns to the deck builder when a new game is asked for", async () => {
+		const { board, newGameButton, startGame } = await loadApp(hint({ cardId: 0, position: 4 }, 2))
+		startGame()
+		expect(board.children[0].className).toBe("game-board")
+
+		newGameButton.dispatch("click")
+
+		expect(board.children[0].className).toBe("deck-builder")
+		expect(mocks.draws).toHaveLength(1)
+	})
+
 	it("drops a solve scheduled for a game the player has abandoned", async () => {
-		const { log, newGameButton, latest } = await loadApp(hint({ cardId: 0, position: 4 }, 2))
+		const { log, newGameButton, startGame, latest } = await loadApp(hint({ cardId: 0, position: 4 }, 2))
+		startGame()
 		const abandoned = latest().state
 
 		newGameButton.dispatch("click")
+		startGame()
 		expect(mocks.draws).toHaveLength(2)
 		expect(latest().state).not.toBe(abandoned)
 

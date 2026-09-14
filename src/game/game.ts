@@ -10,8 +10,9 @@ export type Move = {
 
 export type GameData = {
 	cards: readonly Card[]
-	cardIds: ReadonlyMap<Card, number>
 	cardStats: readonly Card["attributes"][]
+	hand1: number
+	hand2: number
 }
 
 export type GameState = {
@@ -27,24 +28,38 @@ export type GameState = {
 export const BOARD_SIZE = 9
 export const CARDS_IN_HAND = 5
 
+/**
+ * Card ids are positional: player one holds `0..p1Hand.length - 1` and player two
+ * the rest. Ids are deliberately not shared between identical cards, so a hand may
+ * hold any combination of the catalogue — five Geezards included — and the two
+ * players never collide on a card they happen to both be holding.
+ */
 export const createGameData = (p1Hand: Card[], p2Hand: Card[]): GameData => {
-	const cards = [...new Set([...p1Hand, ...p2Hand])]
-	const cardIds = new Map(cards.map((card, cardId) => [card, cardId]))
-	return { cards, cardIds, cardStats: cards.map((card) => card.attributes) }
+	const cards = [...p1Hand, ...p2Hand]
+	return {
+		cards,
+		cardStats: cards.map((card) => card.attributes),
+		hand1: maskOfRange(0, p1Hand.length),
+		hand2: maskOfRange(p1Hand.length, cards.length),
+	}
 }
 
-export const createGameState = (
-	data: GameData,
-	p1Hand: Card[],
-	p2Hand: Card[],
-	currentPlayer: Player = Math.random() < 0.5 ? 1 : 2,
-): GameState => {
+/** Bits `[from, to)` set, i.e. the ids of one player's starting hand. */
+const maskOfRange = (from: number, to: number): number => {
+	let mask = 0
+	for (let cardId = from; cardId < to; cardId += 1) {
+		mask |= 1 << cardId
+	}
+	return mask
+}
+
+export const createGameState = (data: GameData, currentPlayer: Player = Math.random() < 0.5 ? 1 : 2): GameState => {
 	return {
 		grid: Array<Cell>(BOARD_SIZE).fill(null),
 		owner1: 0,
 		owner2: 0,
-		hand1: getHandMask(data, p1Hand),
-		hand2: getHandMask(data, p2Hand),
+		hand1: data.hand1,
+		hand2: data.hand2,
 		currentPlayer,
 		moveCount: 0,
 	}
@@ -52,15 +67,16 @@ export const createGameState = (
 
 export const getCard = (data: GameData, cardId: number): Card | null => data.cards[cardId] ?? null
 
-export const getCardsInHand = (data: GameData, state: GameState, player: Player): Card[] => {
+/** The ids still in a player's hand. Ids, not cards, because a hand may hold duplicates. */
+export const getCardsInHand = (data: GameData, state: GameState, player: Player): number[] => {
 	const hand = player === 1 ? state.hand1 : state.hand2
-	const cards: Card[] = []
+	const cardIds: number[] = []
 	for (let cardId = 0; cardId < data.cards.length; cardId += 1) {
 		if ((hand & (1 << cardId)) !== 0) {
-			cards.push(data.cards[cardId])
+			cardIds.push(cardId)
 		}
 	}
-	return cards
+	return cardIds
 }
 
 export const getLegalMoves = (state: GameState, data: GameData): Move[] => {
@@ -164,15 +180,10 @@ const getAdjacentPositions = (position: number): number[] =>
 		(adjacentPosition) => adjacentPosition >= 0 && adjacentPosition < BOARD_SIZE,
 	)
 
-const getHandMask = (data: GameData, hand: Card[]): number =>
-	hand.reduce((mask, card) => {
-		const cardId = data.cardIds.get(card)
-		return cardId === undefined ? mask : mask | (1 << cardId)
-	}, 0)
-
-export const generateRandomDeck = (cards: Card[]): Card[] => {
+/** `count` distinct cards drawn at random from the catalogue. */
+export const generateRandomDeck = (cards: readonly Card[], count = CARDS_IN_HAND): Card[] => {
 	const shuffledCards = [...cards].sort(() => Math.random() - 0.5)
-	return shuffledCards.slice(0, CARDS_IN_HAND)
+	return shuffledCards.slice(0, count)
 }
 
 export const countBits = (value: number): number => {
@@ -371,7 +382,7 @@ const renderStatus = (state: GameState): [HTMLDivElement, HTMLSpanElement] => {
 }
 
 const renderHand = (
-	cardsInHand: Card[],
+	cardIds: number[],
 	owner: Player,
 	state: GameState,
 	data: GameData,
@@ -380,10 +391,9 @@ const renderHand = (
 ): HTMLDivElement => {
 	const hand = document.createElement("div")
 	hand.className = `card-hand${owner === state.currentPlayer && !isGameOver(state) ? "" : " inactive-hand"}`
-	for (const card of cardsInHand) {
-		const image = createCardImage(card, owner)
-		const cardId = data.cardIds.get(card)
-		if (owner === state.currentPlayer && cardId !== undefined) {
+	for (const cardId of cardIds) {
+		const image = createCardImage(data.cards[cardId], owner)
+		if (owner === state.currentPlayer) {
 			activeHandCards.set(cardId, image)
 			image.draggable = true
 			image.addEventListener("click", () => setSelection(cardId))

@@ -41,17 +41,33 @@ afterEach(() => {
 
 describe("game state", () => {
 	it("uses masks for hands and ownership", () => {
-		const state = createGameState(data, [strongCard], [weakCard], 2)
+		const state = createGameState(data, 2)
 
 		expect(state.grid).toEqual(Array(9).fill(null))
 		expect(state.hand1).toBe(1)
 		expect(state.hand2).toBe(2)
-		expect(getCardsInHand(data, state, 1)).toEqual([strongCard])
-		expect(getCardsInHand(data, state, 2)).toEqual([weakCard])
+		expect(getCardsInHand(data, state, 1)).toEqual([0])
+		expect(getCardsInHand(data, state, 2)).toEqual([1])
+	})
+
+	it("gives repeated cards their own id so a hand may hold duplicates", () => {
+		const fiveOfAKind = createGameData([strongCard, strongCard, strongCard], [strongCard, strongCard])
+		const state = createGameState(fiveOfAKind, 1)
+
+		expect(fiveOfAKind.cards).toHaveLength(5)
+		expect(state.hand1).toBe(0b00111)
+		expect(state.hand2).toBe(0b11000)
+		expect(getCardsInHand(fiveOfAKind, state, 1)).toEqual([0, 1, 2])
+	})
+
+	it("keeps hands apart when both players hold the same card", () => {
+		const shared = createGameData([strongCard], [strongCard])
+
+		expect(shared.hand1 & shared.hand2).toBe(0)
 	})
 
 	it("generates legal moves from the active hand mask", () => {
-		const state = createGameState(data, [strongCard], [weakCard], 1)
+		const state = createGameState(data, 1)
 		const moves = getLegalMoves(state, data)
 
 		expect(moves).toHaveLength(9)
@@ -60,7 +76,7 @@ describe("game state", () => {
 	})
 
 	it("validates and applies moves without mutating the source state", () => {
-		const state = createGameState(data, [strongCard], [weakCard], 1)
+		const state = createGameState(data, 1)
 		const move = { cardId: 0, position: 0 }
 
 		expect(isLegalMove(data, state, move)).toBe(true)
@@ -82,7 +98,7 @@ describe("game state", () => {
 	})
 
 	it("captures adjacent cards for both players", () => {
-		const p1State = createGameState(data, [strongCard], [weakCard], 1)
+		const p1State = createGameState(data, 1)
 		const p1Grid: GameState["grid"] = [null, 1, null, null, null, null, null, null, null]
 		expect(
 			getOwnersAfterMove(data, { ...p1State, owner2: 1 << 1 }, [0, 1, null, null, null, null, null, null, null], {
@@ -91,7 +107,7 @@ describe("game state", () => {
 			}),
 		).toEqual([3, 0])
 
-		const p2State = createGameState(data, [weakCard], [strongCard], 2)
+		const p2State = createGameState(data, 2)
 		expect(
 			getOwnersAfterMove(data, { ...p2State, owner1: 1 << 3 }, [0, null, null, 1, null, null, null, null, null], {
 				cardId: 0,
@@ -142,7 +158,7 @@ describe("board rendering", () => {
 
 		const entry = new FakeElement()
 		const onStateChange = vi.fn()
-		drawBoard(entry as unknown as HTMLElement, data, createGameState(data, [strongCard], [weakCard], 1), onStateChange)
+		drawBoard(entry as unknown as HTMLElement, data, createGameState(data, 1), onStateChange)
 		const board = entry.children[0]
 		const grid = board.children[1]
 		const p1Panel = board.children[2]
@@ -159,7 +175,7 @@ describe("board rendering", () => {
 	it("labels each player with their card count and marks the active one", () => {
 		vi.stubGlobal("document", { createElement: () => new FakeElement() })
 		const entry = new FakeElement()
-		drawBoard(entry as unknown as HTMLElement, data, createGameState(data, [strongCard], [weakCard], 1), vi.fn())
+		drawBoard(entry as unknown as HTMLElement, data, createGameState(data, 1), vi.fn())
 		const board = entry.children[0]
 		const [p2Panel, , p1Panel] = board.children
 
@@ -173,7 +189,7 @@ describe("board rendering", () => {
 	it("announces whose turn it is while the game is running", () => {
 		vi.stubGlobal("document", { createElement: () => new FakeElement() })
 		const entry = new FakeElement()
-		drawBoard(entry as unknown as HTMLElement, data, createGameState(data, [strongCard], [weakCard], 2), vi.fn())
+		drawBoard(entry as unknown as HTMLElement, data, createGameState(data, 2), vi.fn())
 		const status = entry.children[1]
 
 		expect(status.className).toBe("game-status turn-player-2")
@@ -218,8 +234,7 @@ describe("board rendering", () => {
 })
 
 describe("optimal move hint", () => {
-	const hintedState = (currentPlayer: 1 | 2): GameState =>
-		createGameState(data, [strongCard], [weakCard], currentPlayer)
+	const hintedState = (currentPlayer: 1 | 2): GameState => createGameState(data, currentPlayer)
 
 	it("marks the target cell and card, and reads the score from player one's view", () => {
 		vi.stubGlobal("document", { createElement: () => new FakeElement() })
@@ -271,17 +286,8 @@ describe("optimal move hint", () => {
 })
 
 describe("unknown cards", () => {
-	const stranger = card("stranger", 5)
-
 	it("returns null for a card id the data does not hold", () => {
 		expect(getCard(data, 99)).toBeNull()
-	})
-
-	it("leaves cards outside the data out of the hand mask", () => {
-		const state = createGameState(data, [strongCard, stranger], [weakCard], 1)
-
-		expect(state.hand1).toBe(0b1)
-		expect(getCardsInHand(data, state, 1)).toEqual([strongCard])
 	})
 
 	it("draws a cell whose card is missing from the data as empty", () => {
@@ -305,10 +311,10 @@ describe("unknown cards", () => {
 describe("starting player", () => {
 	it("tosses a coin when no player is given", () => {
 		vi.spyOn(Math, "random").mockReturnValue(0.49)
-		expect(createGameState(data, [strongCard], [weakCard]).currentPlayer).toBe(1)
+		expect(createGameState(data).currentPlayer).toBe(1)
 
 		vi.spyOn(Math, "random").mockReturnValue(0.5)
-		expect(createGameState(data, [strongCard], [weakCard]).currentPlayer).toBe(2)
+		expect(createGameState(data).currentPlayer).toBe(2)
 	})
 })
 

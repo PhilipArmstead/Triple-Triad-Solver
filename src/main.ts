@@ -1,8 +1,10 @@
 import "./styles.scss"
 import { cards } from "./data/cards"
-import { applyHint, createGameData, createGameState, drawBoard, generateRandomDeck, isGameOver } from "./game/game"
+import { drawDeckBuilder } from "./deck-builder"
+import { applyHint, createGameData, createGameState, drawBoard, isGameOver } from "./game/game"
 import type { GameData, GameState } from "./game/game"
 import { getOptimalMove } from "./game/minimax"
+import type { Card } from "./types"
 
 const board = document.querySelector("#board") as HTMLElement
 const newGameButton = document.querySelector("#new-game") as HTMLButtonElement
@@ -46,12 +48,15 @@ const render = (nextState = state): void => {
 	)
 }
 
+/** Sends the player back to the deck builder; the game starts once they commit. */
 const startNewGame = (): void => {
 	generation += 1
-	const p1Deck = generateRandomDeck(cards)
-	const p2Deck = generateRandomDeck(cards)
-	data = createGameData(p1Deck, p2Deck)
-	render(createGameState(data, p1Deck, p2Deck))
+	drawDeckBuilder(board, cards, startGame)
+}
+
+const startGame = (p1Hand: Card[], p2Hand: Card[]): void => {
+	data = createGameData(p1Hand, p2Hand)
+	render(createGameState(data))
 }
 
 newGameButton.addEventListener("click", startNewGame)
