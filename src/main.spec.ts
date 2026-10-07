@@ -40,7 +40,8 @@ const hint = (move: Move, score: number) => ({ move, score })
  * every test has to deal a pair of hands and commit them before a board exists.
  */
 const fillButtonFor = (board: FakeElement, player: 1 | 2) => board.children[0].children[player].children[2].children[1]
-const startButtonOf = (board: FakeElement) => board.children[1].children[0]
+const firstPlayerSelectOf = (board: FakeElement) => board.children[1].children[0].children[0]
+const startButtonOf = (board: FakeElement) => board.children[1].children[1]
 
 const loadApp = async (optimal: { move: Move; score: number }) => {
 	const board = new FakeElement()
@@ -62,9 +63,12 @@ const loadApp = async (optimal: { move: Move; score: number }) => {
 	await import("./main")
 
 	/** Fills both hands at random and commits them, which is what starts the game. */
-	const startGame = (): void => {
+	const startGame = (firstPlayer?: 1 | 2): void => {
 		fillButtonFor(board, 1).dispatch("click")
 		fillButtonFor(board, 2).dispatch("click")
+		if (firstPlayer !== undefined) {
+			firstPlayerSelectOf(board).value = String(firstPlayer)
+		}
 		startButtonOf(board).dispatch("click")
 	}
 
@@ -110,6 +114,13 @@ describe("app entry", () => {
 		expect(message).toContain(`%c${latest().data.cards[0].name}%c to position %c4%c`)
 		expect(message).toContain("Expected score: %c+2%c")
 		expect(playerColour).toBe("color: #0f0; font-weight: bold;")
+	})
+
+	it("starts with the selected player", async () => {
+		const { startGame, latest } = await loadApp(hint({ cardId: 0, position: 4 }, 2))
+		startGame(2)
+
+		expect(latest().state.currentPlayer).toBe(2)
 	})
 
 	it("annotates the board with the solver's recommendation", async () => {

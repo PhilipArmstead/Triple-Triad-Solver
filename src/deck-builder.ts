@@ -26,17 +26,43 @@ const CARD_OPTIONS_ID = "card-options"
 export const drawDeckBuilder = (
 	entry: HTMLElement,
 	cards: readonly Card[],
-	onStart: (p1Hand: Card[], p2Hand: Card[]) => void,
+	onStart: (p1Hand: Card[], p2Hand: Card[], firstPlayer: Player | undefined) => void,
 ): void => {
 	const catalogue = sortForCatalogue(cards)
 	const byName = new Map(catalogue.map((card) => [card.name, card]))
 	const hands: Hands = { 1: [], 2: [] }
 
+	const firstPlayerSelect = document.createElement("select")
+	firstPlayerSelect.className = "first-player-select"
+	for (const [value, label] of [
+		["random", "Random"],
+		["1", "Player 1"],
+		["2", "Player 2"],
+	] as const) {
+		const option = document.createElement("option")
+		option.value = value
+		option.textContent = label
+		firstPlayerSelect.append(option)
+	}
+	firstPlayerSelect.value = "random"
+
+	const firstPlayerControl = document.createElement("label")
+	firstPlayerControl.className = "first-player-control"
+	firstPlayerControl.append("First to move: ", firstPlayerSelect)
+
 	const startButton = document.createElement("button")
 	startButton.className = "new-game start-game"
 	startButton.type = "button"
 	startButton.textContent = "Start game"
-	startButton.addEventListener("click", () => onStart(hands[1], hands[2]))
+	startButton.addEventListener("click", () => {
+		let firstPlayer: Player | undefined
+		if (firstPlayerSelect.value === "1") {
+			firstPlayer = 1
+		} else if (firstPlayerSelect.value === "2") {
+			firstPlayer = 2
+		}
+		onStart(hands[1], hands[2], firstPlayer)
+	})
 
 	// Panels are built once and refreshed in place. Rebuilding them would replace the
 	// card fields on every pick, so a player naming five cards in a row would lose
@@ -55,7 +81,7 @@ export const drawDeckBuilder = (
 
 	const footer = document.createElement("div")
 	footer.className = "builder-footer"
-	footer.append(startButton)
+	footer.append(firstPlayerControl, startButton)
 
 	refresh()
 	entry.innerHTML = ""

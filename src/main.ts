@@ -2,7 +2,7 @@ import "./styles.scss"
 import { cards } from "./data/cards"
 import { drawDeckBuilder } from "./deck-builder"
 import { applyHint, createGameData, createGameState, drawBoard, isGameOver } from "./game/game"
-import type { GameData, GameState } from "./game/game"
+import type { GameData, GameState, Player } from "./game/game"
 import { getOptimalMove } from "./game/minimax"
 import type { Card } from "./types"
 
@@ -54,9 +54,9 @@ const startNewGame = (): void => {
 	drawDeckBuilder(board, cards, startGame)
 }
 
-const startGame = (p1Hand: Card[], p2Hand: Card[]): void => {
+const startGame = (p1Hand: Card[], p2Hand: Card[], firstPlayer: Player | undefined): void => {
 	data = createGameData(p1Hand, p2Hand)
-	render(createGameState(data))
+	render(createGameState(data, firstPlayer))
 }
 
 newGameButton.addEventListener("click", startNewGame)

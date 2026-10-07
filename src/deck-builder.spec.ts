@@ -30,7 +30,8 @@ const builderOf = (entry: FakeElement) => {
 		slots: (player: 1 | 2) => panel(player).children[1].children,
 		input: (player: 1 | 2) => controls(player).children[0],
 		fillButton: (player: 1 | 2) => controls(player).children[1],
-		startButton: entry.children[1].children[0],
+		firstPlayerSelect: entry.children[1].children[0].children[0],
+		startButton: entry.children[1].children[1],
 	}
 }
 
@@ -70,11 +71,11 @@ describe("deck builder", () => {
 			"Zell",
 		])
 		expect(ui.datalist.children.map((option) => option.label)).toEqual([
-			"Level 1",
-			"Level 1",
-			"Level 4",
-			"Level 4",
-			"Level 10",
+			"Bite Bug",
+			"Geezard",
+			"Angelo",
+			"Ifrit",
+			"Zell",
 		])
 	})
 
@@ -86,6 +87,17 @@ describe("deck builder", () => {
 		expect(ui.slots(1)).toHaveLength(5)
 		expect(ui.slots(1).every((slot) => slot.className === "builder-slot")).toBe(true)
 		expect(ui.startButton.disabled).toBe(true)
+	})
+
+	it("offers a random first player by default or lets the user choose one", () => {
+		const { ui } = draw()
+
+		expect(ui.firstPlayerSelect.value).toBe("random")
+		expect(ui.firstPlayerSelect.children.map((option) => [option.value, option.textContent])).toEqual([
+			["random", "Random"],
+			["1", "Player 1"],
+			["2", "Player 2"],
+		])
 	})
 
 	it("points each field at the shared list of card names", () => {
@@ -206,10 +218,24 @@ describe("deck builder", () => {
 		ui.startButton.dispatch("click")
 
 		expect(onStart).toHaveBeenCalledOnce()
-		const [p1Hand, p2Hand] = onStart.mock.calls[0]!
+		const [p1Hand, p2Hand, firstPlayer] = onStart.mock.calls[0]!
 		expect(p1Hand).toHaveLength(5)
 		expect(p2Hand).toHaveLength(5)
 		expect(p1Hand.every((chosen: Card) => catalogue.includes(chosen))).toBe(true)
+		expect(firstPlayer).toBeUndefined()
+	})
+
+	it.each([
+		["1", 1],
+		["2", 2],
+	] as const)("passes Player %s as the first player", (selection, firstPlayer) => {
+		const { ui, onStart } = draw()
+		fillBoth(ui)
+		ui.firstPlayerSelect.value = selection
+
+		ui.startButton.dispatch("click")
+
+		expect(onStart.mock.calls[0]![2]).toBe(firstPlayer)
 	})
 
 	it("keeps the fields alive across a pick, so a name can follow a name", () => {
